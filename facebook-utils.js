@@ -1,71 +1,47 @@
-;(function(exports, $, Deferred) { 
+;(function(exports, Deferred, $) { 
 
 	"use strict";
 
-	if ( !exports.FB ) {
-		$ && $.getScript("//connect.facebook.net/en_US/all.js").done(function() {
-			$ && $.event.trigger("load.fb");
-		});
+	if( exports.FBX ) { 
+		return;
+	} else if ( !exports.FB ) {
+		$ && $.getScript("//connect.facebook.net/en_US/all.js");
 	} else {
-		enhance(exports.FB);
+		setup(exports.FB);
 	}
 
 	exports.fbAsyncInit = function() {
-		enhance(exports.FB);
+		setup(exports.FB);
 		$ && $.event.trigger("init.fb");
 	};
 
-	function enhance(FB) {
-		
-		var FBX = {
-			ui: FB.ui,
-			api: FB.api,
-			login: FB.login,
-			logout: FB.logout,
-			getLoginStatus: FB.getLoginStatus
-		};
-		
-		
-		$.extend(FB, {
-			ui: function(obj) {
-				return wrapper(FBX.ui, arguments, function(r, d) {
-					switch( obj.method ) {
-						case "feed": r && r.post_id? d.resolve(r) : d.reject(r); break;
-						case "pay": r && r.order_id ? d.resolve(r) : d.reject(r); break;
-						case "apprequests": r && r.to? d.resolve(r) : d.reject(r); break;
-						case "send": d.resolve(r); break;
-						default: d.resolve(r);
-					}
-				});
-			},
-			
-			api: function() {
-				return wrapper(FBX.api, arguments, function(r,d) {
-					(r.error || r.error_code ? d.reject(r) : d.resolve(r));
-				});
-			},
-	
-			login: function() {
-				return wrapper(FBX.login, arguments, function(r,d) {
-					r.authResponse ? d.reject(r) : d.resolve(r);
-				});
-			},
-			
-			logout: function() {
-				return wrapper(FBX.logout, arguments);
-			},
-			
-			getLoginStatus: function() {
-				return wrapper(FBX.getLoginStatus, arguments);
-			}
-		});
+	function setup(FB) {
 
-		function wrapper(target, args, fn) {
-			var defer = Deferred(), 
-				arr = Array.prototype.slice.apply(args),
-				fn = fn || function(r,d) { d.resolve(r); };
+		var override = [ "ui", "login", "logout", "getLoginStatus" ],
+			FBX = function FBX() {
+				for(var i = 0; i < override.length; i++) {
+					this[override[i]] = proxy(FB[override[i]]);
+				}
+				
+				this["api"] = proxy(FB.api, function(r,d) {
+					r.error || r.error_code? d.reject(r) : d.resolve(r); 
+				});
+		};
+
+		FBX.prototype = FB;
+		exports.FBX = new FBX();
+		
+	};
+	
+	function proxy(target, fn) {
+		
+		fn = fn || check;
+		
+		return function() {
+			var defer = Deferred(),
+				arr = Array.prototype.slice.apply(arguments);
 			
-			typeof(arr[arr.length - 1])  === "function" &&
+			typeof arr[arr.length - 1]  === "function" &&
 				defer.always(arr.pop());
 			
 			arr.push(function(response) {
@@ -74,7 +50,11 @@
 			
 			return target.apply(this, arr), defer;
 		};
-		
 	};
-
-} (window, jQuery, jQuery.Deferred));
+	
+	function check(r,d) {
+		return (r && r.post_id || r.order_id || r.to || r.status ?
+					d.resolve(r) : d.reject(r));
+	};
+	
+} (window, window.jQuery.Deferred, $));
