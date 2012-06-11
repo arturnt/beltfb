@@ -2,7 +2,10 @@
 
 	"use strict";
 
-	if( exports.FBX ) { 
+	/** 
+	 * Get the library if it is not available.
+	 */
+	if( exports._FB ) { 
 		return;
 	} else if ( !exports.FB ) {
 		$ && $.getScript("//connect.facebook.net/en_US/all.js");
@@ -10,33 +13,53 @@
 		setup(exports.FB);
 	}
 
+	
+	/**
+	 * Preserve the callback, and then wrap it
+	 * make it generic and trigger it.
+	 */
+	var fbAsyncInit = exports.fbAsyncInit;
 	exports.fbAsyncInit = function() {
 		setup(exports.FB);
-		$ && $.event.trigger("init.fb");
+		fbAsyncInit && fbAsyncInit();
+		$ && $.event.trigger("load.fb");
 	};
 
-	function setup(FB) {
-
-		var override = [ "ui", "login", "logout", "getLoginStatus" ],
-			FBX = function FBX() {
+	
+	/**
+	 * Bind Deferred to FB methods
+	 */
+	function setup(/*FB[object]*/ FB) {
+		var override = [ "ui", "logout", "getLoginStatus" ],
+			_FB = function _FB() {
+			
 				for(var i = 0; i < override.length; i++) {
-					this[override[i]] = proxy(FB[override[i]]);
+					this[override[i]] = bind(FB[override[i]], function(r,d) {
+						r && r.post_id || r.order_id || r.to || r.status ?
+								d.resolve(r) : d.reject(r);
+					});
 				}
 				
-				this["api"] = proxy(FB.api, function(r,d) {
-					r.error || r.error_code? d.reject(r) : d.resolve(r); 
+				this["login"] = bind(FB.login, function(r,d) {
+					r && r.authResponse ? d.resolve(r) : d.reject(r);
+				});
+				
+				this["api"] = bind(FB.api, function(r,d) {
+					r && r.error || r.error_code? d.reject(r) : d.resolve(r); 
 				});
 		};
 
-		FBX.prototype = FB;
-		exports.FBX = new FBX();
-		
+		_FB.prototype = FB;
+		exports._FB = new _FB();		
 	};
 	
-	function proxy(target, fn) {
-		
-		fn = fn || check;
-		
+	
+	/** 
+	 * Helper method used in setup that acts
+	 * as the pipe between FB API calls and Deferred 
+	 * objects.
+	 */
+	function bind(/* FB.*[object] */ target, /* Function */ fn) {
 		return function() {
 			var defer = Deferred(),
 				arr = Array.prototype.slice.apply(arguments);
@@ -50,11 +73,6 @@
 			
 			return target.apply(this, arr), defer;
 		};
-	};
-	
-	function check(r,d) {
-		return (r && r.post_id || r.order_id || r.to || r.status ?
-					d.resolve(r) : d.reject(r));
 	};
 	
 } (window, window.jQuery.Deferred, $));
