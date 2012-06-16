@@ -1,5 +1,4 @@
-
-### Unofficial FB Javascript SDK Bootstrap
+# Unofficial FB Javascript SDK Bootstrap
 
 This project is meant to fix all the broken things in the Facebook library. 
 Most importantly give it an upgrade so it can work with most modern Javascript techniques, like:
@@ -8,7 +7,7 @@ Most importantly give it an upgrade so it can work with most modern Javascript t
 like loading multiple things at the same time.
 
 
-#### Examples:
+### Examples:
               
 *Listen for some FB events*
 
