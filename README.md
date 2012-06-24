@@ -19,6 +19,13 @@ $(document).bind("load.fb", function() {
 });
 ```
 
+*Decoupled events allow you to know when to make requests*
+
+```javascript
+$(document).bind("init.fb", function() {
+   _FB.api("/me").then(function(me) { console.log(me) });
+});
+
 *No guessing if a post was successful or not, attach relevant success/failure callbacks*
 
 ```javascript
