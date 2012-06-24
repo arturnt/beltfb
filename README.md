@@ -25,6 +25,7 @@ $(document).bind("load.fb", function() {
 $(document).bind("init.fb", function() {
    _FB.api("/me").then(function(me) { console.log(me) });
 });
+```
 
 *No guessing if a post was successful or not, attach relevant success/failure callbacks*
 
